@@ -4,6 +4,9 @@ import (
 	"strconv"
 	"strings"
 
+	"context"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 
 	"tugas2/app/model"
@@ -75,4 +78,8 @@ func parseListQuery(c *fiber.Ctx) model.ListQuery {
 		}
 	}
 	return q
+}
+
+func reqCtx(c *fiber.Ctx) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(c.UserContext(), 5*time.Second)
 }
