@@ -9,6 +9,7 @@ import (
 
 	"tugas2/app/model"
 	"tugas2/app/repository"
+	"tugas2/app/service"
 )
 
 func paramID(c *fiber.Ctx) (int, bool) {
@@ -86,22 +87,10 @@ func (h *StudentHandler) Create(c *fiber.Ctx) error {
 	req.Name = strings.TrimSpace(req.Name)
 	req.NIM = strings.TrimSpace(req.NIM)
 
-	errs := map[string]string{}
-	if req.Name == "" {
-		errs["name"] = "wajib diisi"
-	}
-	if req.NIM == "" {
-		errs["nim"] = "wajib diisi"
-	}
-	if req.Grade < 0 || req.Grade > 100 {
-		errs["grade"] = "harus di antara 0 dan 100"
-	}
-	if len(errs) > 0 {
+	if errs := service.ValidateCreate(req); len(errs) > 0 {
 		return failValidation(c, errs)
 	}
 
-	// Keunikan NIM tidak dicek manual di sini — dijamin UNIQUE INDEX
-	// di basis data, jadi tidak ada celah race condition.
 	baru, err := h.repo.Create(ctx, model.Student{
 		NIM: req.NIM, Name: req.Name, Grade: req.Grade, IsActive: true,
 	})
@@ -126,14 +115,7 @@ func (h *StudentHandler) Replace(c *fiber.Ctx) error {
 		return fail(c, fiber.StatusBadRequest, "body harus berupa JSON yang valid")
 	}
 
-	errs := map[string]string{}
-	if strings.TrimSpace(req.Name) == "" {
-		errs["name"] = "wajib diisi pada PUT"
-	}
-	if req.Grade < 0 || req.Grade > 100 {
-		errs["grade"] = "harus di antara 0 dan 100"
-	}
-	if len(errs) > 0 {
+	if errs := service.ValidateReplace(req); len(errs) > 0 {
 		return failValidation(c, errs)
 	}
 
@@ -159,7 +141,8 @@ func (h *StudentHandler) Patch(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fail(c, fiber.StatusBadRequest, "body harus berupa JSON yang valid")
 	}
-	if req.Name == nil && req.Grade == nil && req.IsActive == nil {
+
+	if service.IsEmptyPatch(req) {
 		return fail(c, fiber.StatusBadRequest, "tidak ada field yang diubah")
 	}
 
@@ -168,21 +151,11 @@ func (h *StudentHandler) Patch(c *fiber.Ctx) error {
 		return terjemahkanError(c, err, "gagal mengambil data student")
 	}
 
-	if req.Name != nil {
-		if strings.TrimSpace(*req.Name) == "" {
-			return failValidation(c, map[string]string{"name": "tidak boleh kosong"})
-		}
-		saatIni.Name = *req.Name
+	updated, errs := service.ApplyPatch(saatIni, req)
+		if len(errs) > 0 {
+		return failValidation(c, errs)
 	}
-	if req.Grade != nil {
-		if *req.Grade < 0 || *req.Grade > 100 {
-			return failValidation(c, map[string]string{"grade": "harus di antara 0 dan 100"})
-		}
-		saatIni.Grade = *req.Grade
-	}
-	if req.IsActive != nil {
-		saatIni.IsActive = *req.IsActive
-	}
+	saatIni = updated
 
 	hasil, err := h.repo.Update(ctx, saatIni)
 	if err != nil {
