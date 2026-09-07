@@ -14,7 +14,7 @@ func ValidateCreate(req model.CreateStudentRequest) map[string]string {
 	if strings.TrimSpace(req.NIM) == "" {
 		errs["nim"] = "wajib diisi"
 	}
-	if req.Grade < 0 || req.Grade > 100 {
+	if req.Grade <= 0 || req.Grade > 100 {
 		errs["grade"] = "harus di antara 0 dan 100"
 	}
 	return errs
