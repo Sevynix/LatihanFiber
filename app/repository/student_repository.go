@@ -110,9 +110,11 @@ func (r *studentPostgresRepository) FindByID(
 ) (model.Student, error) {
 	var s model.Student
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, nim, name, grade, is_active, created_at
+		`SELECT id, nim, name, grade, is_active, created_at,
+		        COALESCE(username, ''), COALESCE(role, 'student')
          FROM students WHERE id = $1`, id,
-	).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt)
+	).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt,
+		&s.Username, &s.Role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.Student{}, ErrNotFound
@@ -167,6 +169,42 @@ func (r *studentPostgresRepository) Delete(ctx context.Context, id int) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (r *studentPostgresRepository) FindByUsername(
+	ctx context.Context, username string,
+) (model.Student, error) {
+	var s model.Student
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, nim, name, grade, is_active, created_at, username, password_hash, role
+         FROM students WHERE LOWER(username) = LOWER($1)`, username,
+	).Scan(&s.ID, &s.NIM, &s.Name, &s.Grade, &s.IsActive, &s.CreatedAt,
+		&s.Username, &s.PasswordHash, &s.Role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.Student{}, ErrNotFound
+		}
+		return model.Student{}, fmt.Errorf("mengambil student: %w", err)
+	}
+	return s, nil
+}
+
+func (r *studentPostgresRepository) CreateWithCredentials(
+	ctx context.Context, s model.Student,
+) (model.Student, error) {
+	err := r.pool.QueryRow(ctx,
+		`INSERT INTO students (nim, name, grade, is_active, username, password_hash, role)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, created_at`,
+		s.NIM, s.Name, s.Grade, s.IsActive, s.Username, s.PasswordHash, s.Role,
+	).Scan(&s.ID, &s.CreatedAt)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return model.Student{}, ErrDuplicate
+		}
+		return model.Student{}, fmt.Errorf("menyimpan student: %w", err)
+	}
+	return s, nil
 }
 
 func isUniqueViolation(err error) bool {

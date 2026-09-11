@@ -3,12 +3,15 @@ package model
 import "time"
 
 type Student struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	NIM       string    `json:"nim"`
-	Grade     float64   `json:"grade"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        		int       `json:"id"`
+	Name      		string    `json:"name"`
+	NIM       		string    `json:"nim"`
+	Grade			float64   `json:"grade"`
+	Username		string    `json:"username,omitempty"`
+	PasswordHash 	string    `json:"-"`
+	Role         	string    `json:"role,omitempty"`
+	IsActive  		bool      `json:"is_active"`
+	CreatedAt 		time.Time `json:"created_at"`
 }
 
 type CreateStudentRequest struct {
