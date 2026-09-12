@@ -13,15 +13,23 @@ import (
 )
 
 func NewApp(
-	logger *slog.Logger, pool *pgxpool.Pool, studentService *service.StudentService,
+	logger *slog.Logger, pool *pgxpool.Pool,
+	studentService *service.StudentService, authService *service.AuthService,
+	jwtManager *helper.JWTManager, allowedOrigins string,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      GetEnv("APP_NAME", "Praktikum Backend Lanjut"),
 		ErrorHandler: newErrorHandler(logger),
+		BodyLimit:    1 * 1024 * 1024,
 	})
 
-	middleware.Register(app, logger)
-	route.Register(app, pool, studentService)
+	middleware.Register(app, logger, allowedOrigins)
+	route.Register(app, route.Dependencies{
+		Pool:           pool,
+		JWT:            jwtManager,
+		StudentService: studentService,
+		AuthService:    authService,
+	})
 
 	app.Use(func(c *fiber.Ctx) error {
 		return helper.Fail(c, fiber.StatusNotFound, "endpoint tidak ditemukan")
