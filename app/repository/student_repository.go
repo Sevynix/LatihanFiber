@@ -24,6 +24,8 @@ type StudentRepository interface {
 	Create(ctx context.Context, s model.Student) (model.Student, error)
 	Update(ctx context.Context, s model.Student) (model.Student, error)
 	Delete(ctx context.Context, id int) error
+	FindByUsername(ctx context.Context, username string) (model.Student, error)
+	CreateWithCredentials(ctx context.Context, s model.Student) (model.Student, error)
 }
 
 // kolomUrut adalah daftar putih untuk ORDER BY (tidak bisa diparameterkan).

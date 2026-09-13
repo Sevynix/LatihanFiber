@@ -12,14 +12,22 @@ import (
 	"tugas2/app/service"
 	"tugas2/config"
 	"tugas2/database"
+	"tugas2/helper"
 )
 
+const minSecretLength = 32
+
 func main() {
-	// 1. Konfigurasi dan logger
 	config.LoadEnv()
 	logger := config.NewLogger()
 
-	// 2. Database
+	jwtSecret := config.GetEnv("JWT_SECRET", "")
+	if len(jwtSecret) < minSecretLength {
+		logger.Error("JWT_SECRET tidak diisi atau terlalu pendek",
+			slog.Int("minimal_karakter", minSecretLength))
+		os.Exit(1)
+	}
+
 	pool, err := database.NewPool(context.Background())
 	if err != nil {
 		logger.Error("gagal terhubung ke database", slog.String("error", err.Error()))
@@ -27,10 +35,23 @@ func main() {
 	}
 	defer pool.Close()
 
-	studentRepository := repository.NewStudentRepository(pool)
-	studentService := service.NewStudentService(studentRepository)
+	jwtManager := helper.NewJWTManager(
+		jwtSecret,
+		config.GetEnv("JWT_ISSUER", "praktikum-backend"),
+		time.Duration(config.GetEnvInt("JWT_ACCESS_TTL_MINUTES", 15))*time.Minute,
+	)
 
-	app := config.NewApp(logger, pool, studentService)
+	studentRepository := repository.NewStudentRepository(pool)
+	tokenRepository := repository.NewTokenRepository(pool)
+
+	studentService := service.NewStudentService(studentRepository)
+	authService := service.NewAuthService(
+		studentRepository, tokenRepository, jwtManager,
+		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
+	)
+
+	app := config.NewApp(logger, pool, studentService, authService,
+		jwtManager, config.GetEnv("ALLOWED_ORIGINS", ""))
 
 	port := config.GetEnv("APP_PORT", "3000")
 
