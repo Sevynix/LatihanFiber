@@ -6,9 +6,9 @@ import (
 	"tugas2/app/model"
 )
 
-const LocalsAuthStudent = "authStudent"
+const LocalsAuthUser = "authUser"
 
-func CurrentStudent(c *fiber.Ctx) (model.AuthStudent, bool) {
-	student, ok := c.Locals(LocalsAuthStudent).(model.AuthStudent)
-	return student, ok
+func CurrentUser(c *fiber.Ctx) (model.AuthUser, bool) {
+	user, ok := c.Locals(LocalsAuthUser).(model.AuthUser)
+	return user, ok
 }

@@ -34,13 +34,13 @@ func NewJWTManager(secret, issuer string, accessTTL time.Duration) *JWTManager {
 
 func (m *JWTManager) AccessTTL() time.Duration { return m.accessTTL }
 
-func (m *JWTManager) GenerateAccess(s model.Student) (string, error) {
+func (m *JWTManager) GenerateAccess(u model.User) (string, error) {
 	now := time.Now()
 	claims := accessClaims{
-		Username: s.Username,
-		Role:     s.Role,
+		Username: u.Username,
+		Role:     u.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   strconv.Itoa(s.ID),
+			Subject:   strconv.Itoa(u.ID),
 			Issuer:    m.issuer,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTTL)),
@@ -50,7 +50,7 @@ func (m *JWTManager) GenerateAccess(s model.Student) (string, error) {
 	return token.SignedString(m.secret)
 }
 
-func (m *JWTManager) Parse(tokenString string) (model.AuthStudent, error) {
+func (m *JWTManager) Parse(tokenString string) (model.AuthUser, error) {
 	claims := &accessClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims,
 		func(t *jwt.Token) (any, error) {
@@ -64,20 +64,20 @@ func (m *JWTManager) Parse(tokenString string) (model.AuthStudent, error) {
 	)
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
-			return model.AuthStudent{}, ErrExpiredToken
+			return model.AuthUser{}, ErrExpiredToken
 		}
-		return model.AuthStudent{}, ErrInvalidToken
+		return model.AuthUser{}, ErrInvalidToken
 	}
 	if !token.Valid {
-		return model.AuthStudent{}, ErrInvalidToken
+		return model.AuthUser{}, ErrInvalidToken
 	}
-	studentID, err := strconv.Atoi(claims.Subject)
+	userID, err := strconv.Atoi(claims.Subject)
 	if err != nil {
-		return model.AuthStudent{}, ErrInvalidToken
+		return model.AuthUser{}, ErrInvalidToken
 	}
-	return model.AuthStudent{
-		StudentID: studentID,
-		Username:  claims.Username,
-		Role:      claims.Role,
+	return model.AuthUser{
+		UserID:   userID,
+		Username: claims.Username,
+		Role:     claims.Role,
 	}, nil
 }

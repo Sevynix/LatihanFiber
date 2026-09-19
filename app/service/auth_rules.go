@@ -1,13 +1,20 @@
 package service
 
 import (
+	"net/mail"
 	"strings"
 	"unicode"
 
 	"tugas2/app/model"
 )
 
-const minPasswordLength = 8
+const (
+	minPasswordLength = 8
+	maxPasswordLength = 72
+
+	maxUsernameLength = 50
+	maxEmailLength    = 100
+)
 
 func ValidateRegister(req model.RegisterRequest) map[string]string {
 	errs := map[string]string{}
@@ -18,15 +25,14 @@ func ValidateRegister(req model.RegisterRequest) map[string]string {
 		errs["username"] = "wajib diisi"
 	case len(username) < 3:
 		errs["username"] = "minimal 3 karakter"
+	case len(username) > maxUsernameLength:
+		errs["username"] = "maksimal 50 karakter"
 	case !isValidUsername(username):
 		errs["username"] = "hanya boleh huruf, angka, titik, dan garis bawah"
 	}
 
-	if strings.TrimSpace(req.NIM) == "" {
-		errs["nim"] = "wajib diisi"
-	}
-	if strings.TrimSpace(req.Name) == "" {
-		errs["name"] = "wajib diisi"
+	if !isValidEmail(req.Email) {
+		errs["email"] = "format email tidak valid"
 	}
 	if msg := checkPasswordStrength(req.Password); msg != "" {
 		errs["password"] = msg
@@ -48,6 +54,9 @@ func ValidateLogin(req model.LoginRequest) map[string]string {
 func checkPasswordStrength(password string) string {
 	if len(password) < minPasswordLength {
 		return "minimal 8 karakter"
+	}
+	if len(password) > maxPasswordLength {
+		return "maksimal 72 karakter"
 	}
 	var hasLetter, hasDigit bool
 	for _, r := range password {
@@ -78,4 +87,16 @@ func isValidUsername(username string) bool {
 		}
 	}
 	return true
+}
+
+func isValidEmail(email string) bool {
+	if len(email) > maxEmailLength {
+		return false
+	}
+	addr, err := mail.ParseAddress(email)
+	if err != nil || addr.Address != email {
+		return false
+	}
+	at := strings.LastIndex(email, "@")
+	return strings.Contains(email[at+1:], ".")
 }

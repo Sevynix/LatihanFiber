@@ -4,9 +4,8 @@ import "time"
 
 type RegisterRequest struct {
 	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
-	NIM      string `json:"nim"`
-	Name     string `json:"name"`
 }
 
 type LoginRequest struct {
@@ -27,15 +26,15 @@ type TokenPair struct {
 
 type RefreshToken struct {
 	ID        int64
-	StudentID int
+	UserID    int
 	TokenHash string
 	ExpiresAt time.Time
 	RevokedAt *time.Time
 	CreatedAt time.Time
 }
 
-type AuthStudent struct {
-	StudentID int    `json:"student_id"`
-	Username  string `json:"username"`
-	Role      string `json:"role"`
+type AuthUser struct {
+	UserID   int    `json:"user_id"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
 }

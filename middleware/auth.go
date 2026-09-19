@@ -19,7 +19,7 @@ func RequireAuth(jwtManager *helper.JWTManager) fiber.Handler {
 			return helper.Fail(c, fiber.StatusUnauthorized,
 				"header Authorization tidak ada atau salah bentuk")
 		}
-		authStudent, err := jwtManager.Parse(token)
+		authUser, err := jwtManager.Parse(token)
 		if err != nil {
 			c.Set("WWW-Authenticate", `Bearer realm="api"`)
 			if errors.Is(err, helper.ErrExpiredToken) {
@@ -27,7 +27,7 @@ func RequireAuth(jwtManager *helper.JWTManager) fiber.Handler {
 			}
 			return helper.Fail(c, fiber.StatusUnauthorized, "access token tidak valid")
 		}
-		c.Locals(helper.LocalsAuthStudent, authStudent)
+		c.Locals(helper.LocalsAuthUser, authUser)
 		return c.Next()
 	}
 }

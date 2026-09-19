@@ -15,7 +15,7 @@ type TokenRepository interface {
 	Save(ctx context.Context, t model.RefreshToken) error
 	FindActive(ctx context.Context, tokenHash string) (model.RefreshToken, error)
 	Revoke(ctx context.Context, tokenHash string) error
-	RevokeAllForStudent(ctx context.Context, studentID int) error
+	RevokeAllForUser(ctx context.Context, userID int) error
 }
 
 type tokenPostgresRepository struct {
@@ -28,9 +28,9 @@ func NewTokenRepository(pool *pgxpool.Pool) TokenRepository {
 
 func (r *tokenPostgresRepository) Save(ctx context.Context, t model.RefreshToken) error {
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO refresh_tokens (student_id, token_hash, expires_at)
+		`INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
          VALUES ($1, $2, $3)`,
-		t.StudentID, t.TokenHash, t.ExpiresAt,
+		t.UserID, t.TokenHash, t.ExpiresAt,
 	)
 	if err != nil {
 		return fmt.Errorf("menyimpan refresh token: %w", err)
@@ -41,10 +41,10 @@ func (r *tokenPostgresRepository) Save(ctx context.Context, t model.RefreshToken
 func (r *tokenPostgresRepository) FindActive(ctx context.Context, tokenHash string) (model.RefreshToken, error) {
 	var t model.RefreshToken
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, student_id, token_hash, expires_at, revoked_at, created_at
+		`SELECT id, user_id, token_hash, expires_at, revoked_at, created_at
          FROM refresh_tokens
          WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > NOW()`, tokenHash,
-	).Scan(&t.ID, &t.StudentID, &t.TokenHash, &t.ExpiresAt, &t.RevokedAt, &t.CreatedAt)
+	).Scan(&t.ID, &t.UserID, &t.TokenHash, &t.ExpiresAt, &t.RevokedAt, &t.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.RefreshToken{}, ErrNotFound
@@ -65,13 +65,13 @@ func (r *tokenPostgresRepository) Revoke(ctx context.Context, tokenHash string) 
 	return nil
 }
 
-func (r *tokenPostgresRepository) RevokeAllForStudent(ctx context.Context, studentID int) error {
+func (r *tokenPostgresRepository) RevokeAllForUser(ctx context.Context, userID int) error {
 	_, err := r.pool.Exec(ctx,
 		`UPDATE refresh_tokens SET revoked_at = NOW()
-         WHERE student_id = $1 AND revoked_at IS NULL`, studentID,
+         WHERE user_id = $1 AND revoked_at IS NULL`, userID,
 	)
 	if err != nil {
-		return fmt.Errorf("mencabut seluruh refresh token student: %w", err)
+		return fmt.Errorf("mencabut seluruh refresh token user: %w", err)
 	}
 	return nil
 }

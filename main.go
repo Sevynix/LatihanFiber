@@ -42,11 +42,12 @@ func main() {
 	)
 
 	studentRepository := repository.NewStudentRepository(pool)
+	userRepository := repository.NewUserRepository(pool)
 	tokenRepository := repository.NewTokenRepository(pool)
 
 	studentService := service.NewStudentService(studentRepository)
 	authService := service.NewAuthService(
-		studentRepository, tokenRepository, jwtManager,
+		userRepository, tokenRepository, jwtManager,
 		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
 	)
 

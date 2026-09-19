@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
@@ -17,20 +16,20 @@ import (
 const refreshTokenBytes = 32
 
 type AuthService struct {
-	students   repository.StudentRepository
+	users      repository.UserRepository
 	tokens     repository.TokenRepository
 	jwt        *helper.JWTManager
 	refreshTTL time.Duration
 }
 
 func NewAuthService(
-	students repository.StudentRepository,
+	users repository.UserRepository,
 	tokens repository.TokenRepository,
 	jwtManager *helper.JWTManager,
 	refreshTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
-		students: students, tokens: tokens, jwt: jwtManager, refreshTTL: refreshTTL,
+		users: users, tokens: tokens, jwt: jwtManager, refreshTTL: refreshTTL,
 	}
 }
 
@@ -43,8 +42,7 @@ func (s *AuthService) Register(c *fiber.Ctx) error {
 		return helper.Fail(c, fiber.StatusBadRequest, "body harus berupa JSON yang valid")
 	}
 	req.Username = strings.TrimSpace(req.Username)
-	req.Name = strings.TrimSpace(req.Name)
-	req.NIM = strings.TrimSpace(req.NIM)
+	req.Email = strings.TrimSpace(req.Email)
 
 	if errs := ValidateRegister(req); len(errs) > 0 {
 		return helper.FailValidation(c, errs)
@@ -55,18 +53,22 @@ func (s *AuthService) Register(c *fiber.Ctx) error {
 		return helper.Fail(c, fiber.StatusInternalServerError, "gagal memproses password")
 	}
 
-	created, err := s.students.CreateWithCredentials(ctx, model.Student{
-		NIM: req.NIM, Name: req.Name, Grade: 0, IsActive: true,
-		Username: req.Username, PasswordHash: hashed, Role: "student",
+	created, err := s.users.Create(ctx, model.User{
+		Username:     req.Username,
+		Email:        req.Email,
+		PasswordHash: hashed,
+		Role:         model.DefaultRole,
+		IsActive:     true,
 	})
 	if err != nil {
 		if errors.Is(err, repository.ErrDuplicate) {
-			return helper.Fail(c, fiber.StatusConflict, "username atau NIM sudah dipakai")
+			return helper.Fail(c, fiber.StatusConflict, "username atau email sudah dipakai")
 		}
-		return helper.Fail(c, fiber.StatusInternalServerError, "gagal mendaftarkan student")
+		return helper.Fail(c, fiber.StatusInternalServerError, "gagal mendaftarkan user")
 	}
-	return helper.Created(c, "pendaftaran berhasil", created,
-		"/api/v1/students/"+strconv.Itoa(created.ID))
+	// Belum ada endpoint /users pada pertemuan ini, sehingga Location
+	// menunjuk ke profil milik akun yang baru dibuat.
+	return helper.Created(c, "pendaftaran berhasil", created, "/api/v1/auth/me")
 }
 
 func (s *AuthService) Login(c *fiber.Ctx) error {
@@ -81,19 +83,19 @@ func (s *AuthService) Login(c *fiber.Ctx) error {
 		return helper.FailValidation(c, errs)
 	}
 
-	student, err := s.students.FindByUsername(ctx, strings.TrimSpace(req.Username))
+	user, err := s.users.FindByUsername(ctx, strings.TrimSpace(req.Username))
 	if err != nil {
 		helper.VerifyDummyPassword(req.Password)
 		return helper.Fail(c, fiber.StatusUnauthorized, "username atau password salah")
 	}
-	if !helper.VerifyPassword(student.PasswordHash, req.Password) {
+	if !helper.VerifyPassword(user.PasswordHash, req.Password) {
 		return helper.Fail(c, fiber.StatusUnauthorized, "username atau password salah")
 	}
-	if !student.IsActive {
+	if !user.IsActive {
 		return helper.Fail(c, fiber.StatusForbidden, "akun dinonaktifkan")
 	}
 
-	pair, err := s.issueTokenPair(ctx, student)
+	pair, err := s.issueTokenPair(ctx, user)
 	if err != nil {
 		return helper.Fail(c, fiber.StatusInternalServerError, "gagal membuat token")
 	}
@@ -119,8 +121,8 @@ func (s *AuthService) Refresh(c *fiber.Ctx) error {
 			"refresh token tidak valid atau sudah kedaluwarsa")
 	}
 
-	student, err := s.students.FindByID(ctx, stored.StudentID)
-	if err != nil || !student.IsActive {
+	user, err := s.users.FindByID(ctx, stored.UserID)
+	if err != nil || !user.IsActive {
 		return helper.Fail(c, fiber.StatusUnauthorized, "akun tidak dapat dipakai")
 	}
 
@@ -128,7 +130,7 @@ func (s *AuthService) Refresh(c *fiber.Ctx) error {
 		return helper.Fail(c, fiber.StatusInternalServerError, "gagal memperbarui token")
 	}
 
-	pair, err := s.issueTokenPair(ctx, student)
+	pair, err := s.issueTokenPair(ctx, user)
 	if err != nil {
 		return helper.Fail(c, fiber.StatusInternalServerError, "gagal membuat token")
 	}
@@ -153,19 +155,19 @@ func (s *AuthService) Me(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 
-	authStudent, ok := helper.CurrentStudent(c)
+	authUser, ok := helper.CurrentUser(c)
 	if !ok {
 		return helper.Fail(c, fiber.StatusUnauthorized, "belum terautentikasi")
 	}
-	student, err := s.students.FindByID(ctx, authStudent.StudentID)
+	user, err := s.users.FindByID(ctx, authUser.UserID)
 	if err != nil {
-		return helper.Fail(c, fiber.StatusUnauthorized, "student tidak ditemukan")
+		return helper.Fail(c, fiber.StatusUnauthorized, "user tidak ditemukan")
 	}
-	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", student)
+	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", user)
 }
 
-func (s *AuthService) issueTokenPair(ctx context.Context, student model.Student) (model.TokenPair, error) {
-	accessToken, err := s.jwt.GenerateAccess(student)
+func (s *AuthService) issueTokenPair(ctx context.Context, user model.User) (model.TokenPair, error) {
+	accessToken, err := s.jwt.GenerateAccess(user)
 	if err != nil {
 		return model.TokenPair{}, err
 	}
@@ -174,7 +176,7 @@ func (s *AuthService) issueTokenPair(ctx context.Context, student model.Student)
 		return model.TokenPair{}, err
 	}
 	err = s.tokens.Save(ctx, model.RefreshToken{
-		StudentID: student.ID,
+		UserID:    user.ID,
 		TokenHash: helper.SHA256Hex(refreshToken),
 		ExpiresAt: time.Now().Add(s.refreshTTL),
 	})
