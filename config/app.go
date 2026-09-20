@@ -4,18 +4,14 @@ import (
 	"log/slog"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 
-	"tugas2/app/service"
 	"tugas2/helper"
 	"tugas2/middleware"
 	"tugas2/route"
 )
 
 func NewApp(
-	logger *slog.Logger, pool *pgxpool.Pool,
-	studentService *service.StudentService, authService *service.AuthService,
-	jwtManager *helper.JWTManager, allowedOrigins string,
+	logger *slog.Logger, deps route.Dependencies, allowedOrigins string,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:      GetEnv("APP_NAME", "Praktikum Backend Lanjut"),
@@ -24,12 +20,7 @@ func NewApp(
 	})
 
 	middleware.Register(app, logger, allowedOrigins)
-	route.Register(app, route.Dependencies{
-		Pool:           pool,
-		JWT:            jwtManager,
-		StudentService: studentService,
-		AuthService:    authService,
-	})
+	route.Register(app, deps)
 
 	app.Use(func(c *fiber.Ctx) error {
 		return helper.Fail(c, fiber.StatusNotFound, "endpoint tidak ditemukan")

@@ -19,6 +19,7 @@ type AuthService struct {
 	users      repository.UserRepository
 	tokens     repository.TokenRepository
 	jwt        *helper.JWTManager
+	perms      *helper.PermissionSet
 	refreshTTL time.Duration
 }
 
@@ -26,10 +27,12 @@ func NewAuthService(
 	users repository.UserRepository,
 	tokens repository.TokenRepository,
 	jwtManager *helper.JWTManager,
+	perms *helper.PermissionSet,
 	refreshTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
-		users: users, tokens: tokens, jwt: jwtManager, refreshTTL: refreshTTL,
+		users: users, tokens: tokens, jwt: jwtManager,
+		perms: perms, refreshTTL: refreshTTL,
 	}
 }
 
@@ -66,8 +69,6 @@ func (s *AuthService) Register(c *fiber.Ctx) error {
 		}
 		return helper.Fail(c, fiber.StatusInternalServerError, "gagal mendaftarkan user")
 	}
-	// Belum ada endpoint /users pada pertemuan ini, sehingga Location
-	// menunjuk ke profil milik akun yang baru dibuat.
 	return helper.Created(c, "pendaftaran berhasil", created, "/api/v1/auth/me")
 }
 
@@ -163,7 +164,10 @@ func (s *AuthService) Me(c *fiber.Ctx) error {
 	if err != nil {
 		return helper.Fail(c, fiber.StatusUnauthorized, "user tidak ditemukan")
 	}
-	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", user)
+	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", fiber.Map{
+		"user":        user,
+		"permissions": s.perms.PermissionsOf(user.Role),
+	})
 }
 
 func (s *AuthService) issueTokenPair(ctx context.Context, user model.User) (model.TokenPair, error) {
