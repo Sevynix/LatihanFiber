@@ -8,6 +8,7 @@ type Student struct {
 	NIM       string    `json:"nim"`
 	Grade     float64   `json:"grade"`
 	IsActive  bool      `json:"is_active"`
+	OwnerID   *int      `json:"owner_id"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
