@@ -7,6 +7,7 @@ import (
 	"tugas2/helper"
 )
 
+func CanAccessUser(
 	current model.AuthUser,
 	targetID int,
 	perms *helper.PermissionSet,
@@ -25,7 +26,6 @@ func ValidateAssignRole(
 	perms *helper.PermissionSet,
 ) map[string]string {
 	errs := map[string]string{}
-
 	role := strings.TrimSpace(req.Role)
 	if role == "" {
 		errs["role"] = "wajib diisi"

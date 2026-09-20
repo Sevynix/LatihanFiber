@@ -20,6 +20,7 @@ func RequirePermission(perms *helper.PermissionSet, permission string) fiber.Han
 	}
 }
 
+func RequireRole(roles ...string) fiber.Handler {
 	allowed := make(map[string]struct{}, len(roles))
 	for _, role := range roles {
 		allowed[role] = struct{}{}
