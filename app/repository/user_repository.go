@@ -15,7 +15,7 @@ type UserRepository interface {
 	Create(ctx context.Context, u model.User) (model.User, error)
 	FindByID(ctx context.Context, id int) (model.User, error)
 	FindByUsername(ctx context.Context, username string) (model.User, error)
-	FindAll(ctx context.Context, limit, offset int) ([]model.User, int, error)
+	FindAfterCursor(ctx context.Context, q model.CursorQuery) ([]model.User, error)
 	UpdateEmail(ctx context.Context, id int, email string) (model.User, error)
 	UpdateRole(ctx context.Context, id int, role string) (model.User, error)
 	Delete(ctx context.Context, id int) error
@@ -85,19 +85,34 @@ func (r *userPostgresRepository) FindByUsername(
 	return u, nil
 }
 
-func (r *userPostgresRepository) FindAll(
-	ctx context.Context, limit, offset int,
-) ([]model.User, int, error) {
-	var total int
-	if err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("menghitung user: %w", err)
+func (r *userPostgresRepository) FindAfterCursor(
+	ctx context.Context, q model.CursorQuery,
+) ([]model.User, error) {
+	args := []any{}
+	where := " WHERE 1 = 1"
+
+	if q.Search != "" {
+		args = append(args, "%"+q.Search+"%")
+		where += fmt.Sprintf(" AND username ILIKE $%d", len(args))
+	}
+	if q.IsActive != nil {
+		args = append(args, *q.IsActive)
+		where += fmt.Sprintf(" AND is_active = $%d", len(args))
+	}
+	if q.After != nil {
+		args = append(args, q.After.CreatedAt, q.After.ID)
+		where += fmt.Sprintf(" AND (created_at, id) < ($%d, $%d)",
+			len(args)-1, len(args))
 	}
 
-	rows, err := r.pool.Query(ctx,
-		"SELECT "+userColumns+" FROM users ORDER BY id LIMIT $1 OFFSET $2",
-		limit, offset)
+	args = append(args, q.Limit+1)
+	query := fmt.Sprintf(
+		"SELECT %s FROM users%s ORDER BY created_at ASC, id ASC LIMIT $%d", // ?
+		userColumns, where, len(args))
+
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("mengambil daftar user: %w", err)
+		return nil, fmt.Errorf("mengambil daftar user: %w", err)
 	}
 	defer rows.Close()
 
@@ -105,14 +120,14 @@ func (r *userPostgresRepository) FindAll(
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {
-			return nil, 0, fmt.Errorf("membaca baris user: %w", err)
+			return nil, fmt.Errorf("membaca row user: %w", err)
 		}
 		result = append(result, u)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("membaca hasil query user: %w", err)
+		return nil, fmt.Errorf("membaca hasil query: %w", err)
 	}
-	return result, total, nil
+	return result, nil
 }
 
 func (r *userPostgresRepository) UpdateEmail(
