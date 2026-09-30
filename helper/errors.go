@@ -2,6 +2,7 @@ package helper
 
 import (
 	"fmt"
+	"errors"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -78,7 +79,10 @@ func TooManyRequests(message string) *AppError {
 }
 
 func ServiceUnavailable(message string) *AppError {
-	return &AppError{Status: fiber.StatusServiceUnavailable, Code: "SERVICE_UNAVAILABLE", Message: message}
+	return &AppError{
+		Status: fiber.StatusServiceUnavailable, Code: "SERVICE_UNAVAILABLE",
+		Message: message, cause: errors.New(message),
+	}
 }
 
 func Internal(cause error) *AppError {
