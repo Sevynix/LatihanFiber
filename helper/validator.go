@@ -40,6 +40,19 @@ func newValidator() *validator.Validate {
 		return passwordStrength(fl.Field().String()) == ""
 	})
 
+	_ = v.RegisterValidation("nim", func(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	if len(value) != 11 {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+	})
+
 	return v
 }
 
@@ -98,6 +111,10 @@ func messageFor(fe validator.FieldError) string {
 	case "oneof":
 		return "harus salah satu dari: " +
 			strings.ReplaceAll(fe.Param(), " ", ", ")
+
+	case "nim":
+		return "NIM harus berupa 11 digit angka"
+
 	default:
 		return "tidak memenuhi aturan " + fe.Tag()
 	}
