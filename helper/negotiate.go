@@ -50,8 +50,9 @@ func WriteUsersCSV(c *fiber.Ctx, users []model.User) error {
 			return Internal(err)
 		}
 	}
-	if err := writer.Error(); err != nil { // ?
-		return Internal(err)
+	writer.Flush()
+		if err := writer.Error(); err != nil {
+	return Internal(err)
 	}
 	return c.SendString(buffer.String())
 }

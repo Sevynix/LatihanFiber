@@ -27,7 +27,7 @@ func translateUserError(err error, entity string) error {
 	case errors.Is(err, repository.ErrDuplicate):
 		return helper.Conflict("email sudah dipakai")
 	default:
-		return nil // ?
+		return helper.Internal(err)
 	}
 }
 
