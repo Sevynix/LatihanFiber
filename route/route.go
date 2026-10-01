@@ -63,6 +63,7 @@ func Register(app *fiber.App, deps Dependencies) {
 		deps.StudentService.Delete)
 
 	students.Get("/:id", deps.StudentService.Get)
+	students.Get("/cursor", middleware.RequirePermission(perms, "student:list"), deps.StudentService.ListCursor)
 	students.Put("/:id", deps.StudentService.Replace)
 	students.Patch("/:id", deps.StudentService.Patch)
 }
