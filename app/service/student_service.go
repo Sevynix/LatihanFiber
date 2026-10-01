@@ -56,6 +56,11 @@ func (s *StudentService) loadAuthorized(
 }
 
 func (s *StudentService) List(c *fiber.Ctx) error {
+	format, err := helper.Negotiate(c, helper.FormatJSON, helper.FormatCSV)
+	if err != nil {
+		return err
+	}
+
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
 
@@ -64,6 +69,11 @@ func (s *StudentService) List(c *fiber.Ctx) error {
 	if err != nil {
 		return helper.Internal(err)
 	}
+
+	if format == helper.FormatCSV {
+		return helper.WriteStudentsCSV(c, students)
+	}
+
 	return helper.SuccessList(c, "daftar student berhasil diambil", students, &model.Meta{
 		Page: q.Page, Limit: q.Limit, Total: total,
 		TotalPages: CountTotalPages(total, q.Limit),

@@ -55,6 +55,9 @@ func Register(app *fiber.App, deps Dependencies) {
 	students.Get("/",
 		middleware.RequirePermission(perms, "student:list"),
 		deps.StudentService.List)
+	students.Get("/cursor",
+		middleware.RequirePermission(perms, "student:list"),
+		deps.StudentService.ListCursor)
 	students.Post("/",
 		middleware.RequirePermission(perms, "student:create"),
 		deps.StudentService.Create)
@@ -62,10 +65,9 @@ func Register(app *fiber.App, deps Dependencies) {
 		middleware.RequirePermission(perms, "student:delete"),
 		deps.StudentService.Delete)
 
-	students.Get("/:id", deps.StudentService.Get)
-	students.Get("/cursor", middleware.RequirePermission(perms, "student:list"), deps.StudentService.ListCursor)
-	students.Put("/:id", deps.StudentService.Replace)
-	students.Patch("/:id", deps.StudentService.Patch)
+students.Get("/:id", deps.StudentService.Get)
+students.Put("/:id", deps.StudentService.Replace)
+students.Patch("/:id", deps.StudentService.Patch)
 }
 
 func healthCheck(pool *pgxpool.Pool) fiber.Handler {
