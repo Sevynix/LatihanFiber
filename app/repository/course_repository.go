@@ -40,7 +40,7 @@ func NewCourseRepository(db DBTX) CourseRepository {
 	return &coursePostgresRepository{db: db}
 }
 
-func (r *coursePostgresRepository) WithTx(tx DBTX) *coursePostgresRepository {
+func (r *coursePostgresRepository) WithTx(tx DBTX) CourseRepository {
 	return &coursePostgresRepository{db: tx}
 }
 
