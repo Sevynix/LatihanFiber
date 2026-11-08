@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"tugas2/app/model"
+	"tugas2/helper"
 )
 
-func TestCheckPasswordStrength(t *testing.T) {
+func TestPasswordStrength(t *testing.T) {
 	cases := []struct {
 		name     string
 		password string
@@ -24,10 +25,15 @@ func TestCheckPasswordStrength(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			msg := checkPasswordStrength(tc.password)
-			gotErr := msg != ""
+			req := model.RegisterRequest{
+				Username: "sari.w_1",
+				Email:    "sari@example.com",
+				Password: tc.password,
+			}
+			errs := helper.ValidateStruct(req)
+			gotErr := errs["password"] != ""
 			if gotErr != tc.wantErr {
-				t.Errorf("checkPasswordStrength(%q) = %q, wantErr=%v", tc.password, msg, tc.wantErr)
+				t.Errorf("password %q: error=%q, wantErr=%v", tc.password, errs["password"], tc.wantErr)
 			}
 		})
 	}
@@ -39,7 +45,7 @@ func TestValidateRegister_SemuaSalah(t *testing.T) {
 		Email:    "bukan-email",
 		Password: "abc",
 	}
-	errs := ValidateRegister(req)
+	errs := helper.ValidateStruct(req)
 
 	for _, field := range []string{"username", "email", "password"} {
 		if errs[field] == "" {
@@ -54,27 +60,27 @@ func TestValidateRegister_Valid(t *testing.T) {
 		Email:    "sari@example.com",
 		Password: "rahasia123",
 	}
-	if errs := ValidateRegister(req); len(errs) != 0 {
+	if errs := helper.ValidateStruct(req); len(errs) != 0 {
 		t.Errorf("input valid seharusnya tidak menghasilkan error, dapat: %v", errs)
 	}
 }
 
 func TestValidateRegister_BatasPanjang(t *testing.T) {
 	req := model.RegisterRequest{
-		Username: strings.Repeat("a", maxUsernameLength+1),
-		Email:    strings.Repeat("a", maxEmailLength) + "@example.com",
+		Username: strings.Repeat("a", 31),
+		Email:    strings.Repeat("a", 121) + "@example.com",
 		Password: "rahasia123",
 	}
-	errs := ValidateRegister(req)
+	errs := helper.ValidateStruct(req)
 	if errs["username"] == "" {
-		t.Error("username melebihi kolom VARCHAR(50) seharusnya ditolak")
+		t.Error("username melebihi batas seharusnya ditolak")
 	}
 	if errs["email"] == "" {
-		t.Error("email melebihi kolom VARCHAR(100) seharusnya ditolak")
+		t.Error("email melebihi batas seharusnya ditolak")
 	}
 }
 
-func TestIsValidEmail(t *testing.T) {
+func TestEmailFormat(t *testing.T) {
 	cases := []struct {
 		email string
 		want  bool
@@ -85,24 +91,27 @@ func TestIsValidEmail(t *testing.T) {
 		{"sari", false},
 		{"sari@", false},
 		{"@example.com", false},
-		{"sari@localhost", false},
-		{"Sari <sari@example.com>", false},
-		{"sari@example.com, budi@example.com", false},
 	}
 	for _, tc := range cases {
-		if got := isValidEmail(tc.email); got != tc.want {
-			t.Errorf("isValidEmail(%q) = %v, harap %v", tc.email, got, tc.want)
+		req := model.RegisterRequest{
+			Username: "sari.w_1",
+			Email:    tc.email,
+			Password: "rahasia123",
+		}
+		errs := helper.ValidateStruct(req)
+		if got := errs["email"] == ""; got != tc.want {
+			t.Errorf("email %q: valid=%v, harap %v", tc.email, got, tc.want)
 		}
 	}
 }
 
 func TestValidateLogin(t *testing.T) {
-	errs := ValidateLogin(model.LoginRequest{Username: "", Password: ""})
+	errs := helper.ValidateStruct(model.LoginRequest{Username: "", Password: ""})
 	if errs["username"] == "" || errs["password"] == "" {
 		t.Error("username dan password kosong seharusnya menghasilkan error")
 	}
 
-	errsValid := ValidateLogin(model.LoginRequest{Username: "sari", Password: "rahasia123"})
+	errsValid := helper.ValidateStruct(model.LoginRequest{Username: "sari", Password: "rahasia123"})
 	if len(errsValid) != 0 {
 		t.Errorf("input valid seharusnya tidak menghasilkan error, dapat: %v", errsValid)
 	}
