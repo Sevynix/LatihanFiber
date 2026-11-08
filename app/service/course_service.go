@@ -201,7 +201,7 @@ func (s *CourseService) Swap(c *fiber.Ctx) error {
 		if err := repo.DeleteEnrollment(ctx, req.FromCourseID, current.UserID); err != nil {
 			return err
 		}
-		if _, err := s.courses.DecrementEnrolled(ctx, req.FromCourseID); err != nil {
+		if _, err := repo.DecrementEnrolled(ctx, req.FromCourseID); err != nil {
 			return err
 		}
 		joined, err = repo.IncrementEnrolled(ctx, req.ToCourseID)

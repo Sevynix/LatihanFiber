@@ -108,7 +108,7 @@ func (r *coursePostgresRepository) InsertEnrollment(ctx context.Context, courseI
 func (r *coursePostgresRepository) LockStudent(ctx context.Context, userID int) error {
 	var id int
 	err := r.db.QueryRow(ctx,
-		"SELECT id FROM users WHERE id = $1", userID).Scan(&id)
+		"SELECT id FROM users WHERE id = $1 FOR UPDATE", userID).Scan(&id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
