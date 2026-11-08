@@ -163,10 +163,13 @@ func (r *coursePostgresRepository) DecrementEnrolled(ctx context.Context, course
 }
 
 func (r *coursePostgresRepository) DeleteEnrollment(ctx context.Context, courseID, userID int) error {
-	_, err := r.db.Exec(ctx,
+	tag, err := r.db.Exec(ctx,
 		"DELETE FROM enrollments WHERE course_id = $1 AND user_id = $2", courseID, userID)
 	if err != nil {
 		return fmt.Errorf("menghapus pendaftaran: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotEnrolled
 	}
 	return nil
 }
@@ -194,7 +197,7 @@ func (r *coursePostgresRepository) LockCourses(ctx context.Context, ids ...int) 
 
 func (r *coursePostgresRepository) UpdateQuota(ctx context.Context, id, quota, version int) (model.Course, error) {
 	c, err := scanCourse(r.db.QueryRow(ctx,
-		`UPDATE courses SET quota = $1
+		`UPDATE courses SET quota = $1, version = version + 1
 		 WHERE id = $2 AND version = $3 AND $1 >= enrolled_count
 		 RETURNING `+courseColumns, quota, id, version))
 	if err == nil {
