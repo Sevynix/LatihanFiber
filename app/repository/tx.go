@@ -40,6 +40,7 @@ func (m *TxManager) runOnce(ctx context.Context, fn func(tx DBTX) error) error {
 	if err != nil {
 		return fmt.Errorf("memulai transaction: %w", err)
 	}
+	defer tx.Rollback(ctx)
 	if err := fn(tx); err != nil {
 		return err
 	}
