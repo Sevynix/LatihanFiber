@@ -52,12 +52,13 @@ type student struct {
 }
 
 type env struct {
-	ctx      context.Context
-	pool     *pgxpool.Pool
-	base     string
-	client   *http.Client
-	users    []student
-	courseID map[string]int
+	ctx        context.Context
+	pool       *pgxpool.Pool
+	base       string
+	client     *http.Client
+	users      []student
+	courseID   map[string]int
+	adminToken string
 }
 
 func fatal(format string, args ...any) {
@@ -68,7 +69,7 @@ func fatal(format string, args ...any) {
 func main() {
 	config.LoadEnv()
 
-	mode := flag.String("mode", "crowd", "serial | crowd | credits | swap")
+	mode := flag.String("mode", "crowd", "serial | crowd | credits | swap | assign")
 	count := flag.Int("n", 7, "jumlah mahasiswa pada mode serial")
 	base := flag.String("base", "http://localhost:"+config.GetEnv("APP_PORT", "3000"),
 		"alamat dasar server")
@@ -122,6 +123,11 @@ func main() {
 		consistent = runCredits(e)
 	case "swap":
 		consistent = runSwap(e)
+	case "assign":
+		if err := e.loadAdmin(jwtManager); err != nil {
+			fatal("%v", err)
+		}
+		consistent = runAssign(e)
 	default:
 		fatal("mode tidak dikenal: %q (pilih serial, crowd, credits, atau swap)", *mode)
 	}
@@ -410,4 +416,107 @@ func runSwap(e *env) bool {
 	ok1 := e.courseLine("IF101")
 	ok2 := e.courseLine("IF102")
 	return ok1 && ok2
+}
+
+func (e *env) loadAdmin(jwtManager *helper.JWTManager) error {
+	var u model.User
+	err := e.pool.QueryRow(e.ctx,
+		"SELECT id, username, email, role FROM users WHERE role = 'admin' ORDER BY id LIMIT 1").
+		Scan(&u.ID, &u.Username, &u.Email, &u.Role)
+	if err != nil {
+		return fmt.Errorf("mengambil akun admin: %w", err)
+	}
+	token, err := jwtManager.GenerateAccess(u)
+	if err != nil {
+		return fmt.Errorf("membuat token admin: %w", err)
+	}
+	e.adminToken = token
+	return nil
+}
+
+func runAssign(e *env) bool {
+	const n = 30
+	const quota = 3
+	const supervisorName = "Dosen Uji Rebutan"
+
+	for i := 1; i <= n; i++ {
+		if _, err := e.pool.Exec(e.ctx,
+			"INSERT INTO students (nim, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+			fmt.Sprintf("LT%03d", i), fmt.Sprintf("Mahasiswa Beban %03d", i)); err != nil {
+			fatal("persiapan assign: %v", err)
+		}
+	}
+	if _, err := e.pool.Exec(e.ctx,
+		"DELETE FROM supervisions WHERE student_id IN (SELECT id FROM students WHERE nim LIKE 'LT%')"); err != nil {
+		fatal("persiapan assign: %v", err)
+	}
+	if _, err := e.pool.Exec(e.ctx,
+		`UPDATE supervisors s
+		 SET supervised_count = (SELECT COUNT(*) FROM supervisions x WHERE x.supervisor_id = s.id)`); err != nil {
+		fatal("persiapan assign: %v", err)
+	}
+	if _, err := e.pool.Exec(e.ctx,
+		"UPDATE supervisors SET quota = $1 WHERE name = $2", quota, supervisorName); err != nil {
+		fatal("persiapan assign: %v", err)
+	}
+
+	var supervisorID int
+	if err := e.pool.QueryRow(e.ctx,
+		"SELECT id FROM supervisors WHERE name = $1", supervisorName).Scan(&supervisorID); err != nil {
+		fatal("pembimbing %q tidak ada (jalankan migrations/009_supervisors.sql): %v", supervisorName, err)
+	}
+
+	rows, err := e.pool.Query(e.ctx,
+		"SELECT id FROM students WHERE nim LIKE 'LT%' ORDER BY nim")
+	if err != nil {
+		fatal("persiapan assign: %v", err)
+	}
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			fatal("persiapan assign: %v", err)
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if len(ids) < n {
+		fatal("hanya ada %d mahasiswa uji, butuh %d", len(ids), n)
+	}
+
+	fmt.Printf("%d penetapan serentak ke pembimbing %q berkuota %d...\n", n, supervisorName, quota)
+	start := time.Now()
+	tally := fire(n, func(i int) string {
+		return e.call(e.adminToken, http.MethodPost,
+			fmt.Sprintf("/api/v1/supervisors/%d/assign", supervisorID),
+			map[string]int{"student_id": ids[i]})
+	})
+	elapsed := time.Since(start)
+	printTally(tally, elapsed)
+
+	var supQuota, supCount, supRows int
+	if err := e.pool.QueryRow(e.ctx,
+		`SELECT s.quota, s.supervised_count,
+		        (SELECT COUNT(*) FROM supervisions WHERE supervisor_id = s.id)
+		 FROM supervisors s WHERE s.id = $1`, supervisorID).Scan(&supQuota, &supCount, &supRows); err != nil {
+		fmt.Printf("gagal membaca pembimbing: %v\n", err)
+		return false
+	}
+	consistent := supCount == supRows && supCount <= supQuota
+	status := "KONSISTEN"
+	if !consistent {
+		status = "TIDAK KONSISTEN"
+	}
+	fmt.Printf("%s kuota=%d supervised_count=%d baris supervisions=%d -> %s\n",
+		supervisorName, supQuota, supCount, supRows, status)
+
+	success := tally["201 OK"]
+	full := tally["409 SUPERVISOR_FULL"]
+	if success == quota && full == n-quota && consistent {
+		fmt.Printf("tepat %d berhasil, %d ditolak SUPERVISOR_FULL -> LOLOS\n", quota, n-quota)
+		return true
+	}
+	fmt.Printf("GAGAL: harusnya tepat %d berhasil (201) dan %d ditolak SUPERVISOR_FULL (409), dapat %d dan %d\n",
+		quota, n-quota, success, full)
+	return false
 }
