@@ -13,13 +13,14 @@ import (
 )
 
 type Dependencies struct {
-	Pool           *pgxpool.Pool
-	JWT            *helper.JWTManager
-	Permissions    *helper.PermissionSet
-	StudentService *service.StudentService
-	UserService    *service.UserService
-	AuthService    *service.AuthService
-	CourseService  *service.CourseService
+	Pool               *pgxpool.Pool
+	JWT                *helper.JWTManager
+	Permissions        *helper.PermissionSet
+	StudentService     *service.StudentService
+	UserService        *service.UserService
+	AuthService        *service.AuthService
+	CourseService      *service.CourseService
+	SupervisionService *service.SupervisionService
 }
 
 func Register(app *fiber.App, deps Dependencies) {
@@ -52,7 +53,7 @@ func Register(app *fiber.App, deps Dependencies) {
 	users.Patch("/:id", deps.UserService.Patch)
 
 	students := api.Group("/students",
-	middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
+		middleware.RequireJSON, middleware.RequireAuth(deps.JWT))
 	students.Get("/",
 		middleware.RequirePermission(perms, "student:list"),
 		deps.StudentService.List)
@@ -66,9 +67,9 @@ func Register(app *fiber.App, deps Dependencies) {
 		middleware.RequirePermission(perms, "student:delete"),
 		deps.StudentService.Delete)
 
-students.Get("/:id", deps.StudentService.Get)
-students.Put("/:id", deps.StudentService.Replace)
-students.Patch("/:id", deps.StudentService.Patch)
+	students.Get("/:id", deps.StudentService.Get)
+	students.Put("/:id", deps.StudentService.Replace)
+	students.Patch("/:id", deps.StudentService.Patch)
 
 	courses := api.Group("/courses",
 		middleware.RequireJSON,
@@ -86,6 +87,25 @@ students.Patch("/:id", deps.StudentService.Patch)
 		middleware.RequireJSON,
 		middleware.RequireAuth(deps.JWT))
 	enrollments.Post("/swap", deps.CourseService.Swap)
+
+	supervisors := api.Group("/supervisors",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+	supervisors.Get("/", deps.SupervisionService.List)
+	supervisors.Get("/:id", deps.SupervisionService.Get)
+	supervisors.Post("/:id/assign",
+		middleware.RequirePermission(perms, "supervision:manage"),
+		deps.SupervisionService.Assign)
+	supervisors.Patch("/:id",
+		middleware.RequirePermission(perms, "supervision:manage"),
+		deps.SupervisionService.UpdateQuota)
+
+	supervisions := api.Group("/supervisions",
+		middleware.RequireJSON,
+		middleware.RequireAuth(deps.JWT))
+	supervisions.Post("/switch",
+		middleware.RequirePermission(perms, "supervision:manage"),
+		deps.SupervisionService.Switch)
 }
 
 func healthCheck(pool *pgxpool.Pool) fiber.Handler {
