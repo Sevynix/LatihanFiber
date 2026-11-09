@@ -36,6 +36,19 @@ func main() {
 	}
 	defer pool.Close()
 
+	mongoClient, err := database.NewMongoClient(context.Background())
+	if err != nil {
+		logger.Error("gagal terhubung ke MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = mongoClient.Disconnect(ctx)
+	}()
+	mongoDB := mongoClient.Database(config.GetEnv("MONGO_DATABASE", "praktikum_backend"))
+
 	jwtManager := helper.NewJWTManager(
 		jwtSecret,
 		config.GetEnv("JWT_ISSUER", "praktikum-backend"),
@@ -49,6 +62,12 @@ func main() {
 	courseRepository := repository.NewCourseRepository(pool)
 	supervisorRepository := repository.NewSupervisorRepository(pool)
 	txManager := repository.NewTxManager(pool)
+
+	reviewRepository := repository.NewReviewRepository(mongoDB)
+	if err := reviewRepository.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("gagal membuat index MongoDB", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
 
 	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
 	if err != nil {
@@ -66,9 +85,11 @@ func main() {
 	)
 	courseService := service.NewCourseService(courseRepository, txManager)
 	supervisionService := service.NewSupervisionService(supervisorRepository, txManager)
+	reviewService := service.NewReviewService(reviewRepository, courseRepository, permissions)
 
 	app := config.NewApp(logger, route.Dependencies{
 		Pool:               pool,
+		Mongo:              mongoClient,
 		JWT:                jwtManager,
 		Permissions:        permissions,
 		StudentService:     studentService,
@@ -76,6 +97,7 @@ func main() {
 		AuthService:        authService,
 		CourseService:      courseService,
 		SupervisionService: supervisionService,
+		ReviewService:      reviewService,
 	}, config.GetEnv("ALLOWED_ORIGINS", ""))
 
 	port := config.GetEnv("APP_PORT", "3000")
