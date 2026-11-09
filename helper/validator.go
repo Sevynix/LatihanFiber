@@ -41,16 +41,16 @@ func newValidator() *validator.Validate {
 	})
 
 	_ = v.RegisterValidation("nim", func(fl validator.FieldLevel) bool {
-	value := fl.Field().String()
-	if len(value) != 11 {
-		return false
-	}
-	for _, r := range value {
-		if r < '0' || r > '9' {
+		value := fl.Field().String()
+		if len(value) != 11 {
 			return false
 		}
-	}
-	return true
+		for _, r := range value {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+		return true
 	})
 
 	return v
@@ -88,13 +88,19 @@ func messageFor(fe validator.FieldError) string {
 	case "email":
 		return "format email tidak valid"
 	case "min":
-		if fe.Kind() == reflect.String {
+		switch fe.Kind() {
+		case reflect.String:
 			return "minimal " + fe.Param() + " karakter"
+		case reflect.Slice, reflect.Array, reflect.Map:
+			return "minimal " + fe.Param() + " item"
 		}
 		return "nilai minimal " + fe.Param()
 	case "max":
-		if fe.Kind() == reflect.String {
+		switch fe.Kind() {
+		case reflect.String:
 			return "maksimal " + fe.Param() + " karakter"
+		case reflect.Slice, reflect.Array, reflect.Map:
+			return "maksimal " + fe.Param() + " item"
 		}
 		return "nilai maksimal " + fe.Param()
 	case "alphanum":
