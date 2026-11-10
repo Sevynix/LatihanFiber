@@ -110,11 +110,11 @@ func (s *ReviewService) ListByCourse(c *fiber.Ctx) error {
 		next = reviews[len(reviews)-1].ID
 	}
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"message": "daftar ulasan berhasil diambil",
-		"data":    reviews,
-		"meta":    fiber.Map{"limit": want, "has_more": hasMore, "next_before": next},
+	return c.JSON(model.ReviewPage{
+		Success: true,
+		Message: "daftar ulasan berhasil diambil",
+		Data:    reviews,
+		Meta:    model.ReviewPageMeta{Limit: want, HasMore: hasMore, NextBefore: next},
 	})
 }
 
