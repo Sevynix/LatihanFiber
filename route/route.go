@@ -15,21 +15,26 @@ import (
 )
 
 type Dependencies struct {
-	Pool               *pgxpool.Pool
-	Mongo              *mongo.Client
-	JWT                *helper.JWTManager
-	Permissions        *helper.PermissionSet
-	StudentService     *service.StudentService
-	UserService        *service.UserService
-	AuthService        *service.AuthService
-	CourseService      *service.CourseService
+	Pool                *pgxpool.Pool
+	Mongo               *mongo.Client
+	JWT                 *helper.JWTManager
+	Permissions         *helper.PermissionSet
+	StudentService      *service.StudentService
+	UserService         *service.UserService
+	AuthService         *service.AuthService
+	CourseService       *service.CourseService
 	NotificationService *service.NotificationService
-	SupervisionService *service.SupervisionService
-	ReviewService      *service.ReviewService
-	PortfolioService   *service.PortfolioService
+	SupervisionService  *service.SupervisionService
+	ReviewService       *service.ReviewService
+	PortfolioService    *service.PortfolioService
+	EnableSwagger       bool
 }
 
 func Register(app *fiber.App, deps Dependencies) {
+	if deps.EnableSwagger {
+		// Swagger UI: http://localhost:3000/swagger/index.html
+		app.Get("/swagger/*", swagger.HandlerDefault)
+	}
 	api := app.Group("/api/v1")
 
 	api.Get("/health", healthCheck(deps.Pool, deps.Mongo))

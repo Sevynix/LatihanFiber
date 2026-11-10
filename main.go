@@ -23,6 +23,17 @@ import (
 
 const minSecretLength = 32
 
+// Blok komentar di bawah ini adalah informasi UMUM dokumentasi API
+//
+// @title API KRS Praktikum Backend Lanjut
+// @version 1.0
+// @description API pendaftaran kelas (KRS), ulasan kelas, dan notifikasi
+// @description Seluruh endpoint selain /auth memerlukan access token
+// @BasePath /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Isi dengan: Bearer <access_token>
 func main() {
 	config.LoadEnv()
 	logger := config.NewLogger()
@@ -144,10 +155,11 @@ func startAPI(logger *slog.Logger, pool *pgxpool.Pool) *fiber.App {
 	inspector := asynq.NewInspector(config.RedisOpt())
 
 	app := config.NewApp(logger, route.Dependencies{
-		Pool:        pool,
-		Mongo:       mongoClient,
-		JWT:         jwtManager,
-		Permissions: permissions,
+		Pool:          pool,
+		Mongo:         mongoClient,
+		EnableSwagger: config.GetEnv("SWAGGER_ENABLED", "false") == "true",
+		JWT:           jwtManager,
+		Permissions:   permissions,
 
 		StudentService: service.NewStudentService(studentRepository, permissions),
 		UserService:    service.NewUserService(userRepository, permissions),
