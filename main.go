@@ -69,6 +69,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	portfolioRepository := repository.NewPortfolioRepository(mongoDB)
+	if err := portfolioRepository.EnsureIndexes(context.Background()); err != nil {
+		logger.Error("gagal membuat index portofolio", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
 	rawPermissions, err := roleRepository.LoadPermissions(context.Background())
 	if err != nil {
 		logger.Error("gagal memuat permission", slog.String("error", err.Error()))
@@ -86,6 +92,7 @@ func main() {
 	courseService := service.NewCourseService(courseRepository, txManager)
 	supervisionService := service.NewSupervisionService(supervisorRepository, txManager)
 	reviewService := service.NewReviewService(reviewRepository, courseRepository, permissions)
+	portfolioService := service.NewPortfolioService(portfolioRepository, studentRepository, permissions)
 
 	app := config.NewApp(logger, route.Dependencies{
 		Pool:               pool,
@@ -98,6 +105,7 @@ func main() {
 		CourseService:      courseService,
 		SupervisionService: supervisionService,
 		ReviewService:      reviewService,
+		PortfolioService:   portfolioService,
 	}, config.GetEnv("ALLOWED_ORIGINS", ""))
 
 	port := config.GetEnv("APP_PORT", "3000")

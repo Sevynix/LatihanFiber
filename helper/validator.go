@@ -121,6 +121,11 @@ func messageFor(fe validator.FieldError) string {
 	case "nim":
 		return "NIM harus berupa 11 digit angka"
 
+	case "url":
+		return "format URL tidak valid"
+	case "datetime":
+		return "format tanggal harus YYYY-MM-DD"
+
 	default:
 		return "tidak memenuhi aturan " + fe.Tag()
 	}
