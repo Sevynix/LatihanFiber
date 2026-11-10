@@ -19,6 +19,8 @@ import (
 	"tugas2/database"
 	"tugas2/helper"
 	"tugas2/route"
+
+	_ "tugas2/docs"
 )
 
 const minSecretLength = 32

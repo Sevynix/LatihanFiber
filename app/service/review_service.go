@@ -25,6 +25,21 @@ func NewReviewService(
 	return &ReviewService{reviews: reviews, courses: courses, perms: perms}
 }
 
+// Create godoc
+//
+// @Summary Menulis ulasan untuk sebuah kelas
+// @Description Hanya peserta kelas. Satu mahasiswa hanya boleh menulis satu ulasan per kelas
+// @Tags reviews
+// @Accept json
+// @Produce json
+// @Param id path int true "ID kelas"
+// @Param body body model.CreateReviewRequest true "Isi ulasan"
+// @Success 201 {object} model.WebResponse{data=model.Review}
+// @Failure 403 {object} model.ErrorResponse "NOT_ENROLLED"
+// @Failure 409 {object} model.ErrorResponse "ALREADY_REVIEWED"
+// @Failure 422 {object} model.ErrorResponse
+// @Security BearerAuth
+// @Router /courses/{id}/reviews [post]
 func (s *ReviewService) Create(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
@@ -74,6 +89,20 @@ func (s *ReviewService) Create(c *fiber.Ctx) error {
 	return helper.Created(c, "ulasan berhasil disimpan", created, "/api/v1/reviews/"+created.ID)
 }
 
+// ListByCourse godoc
+//
+// @Summary Daftar ulasan sebuah kelas, terbaru lebih dulu
+// @Description Cursor pagination: kirim meta.next_before sebagai parameter before untuk halaman berikutnya
+// @Tags reviews
+// @Produce json
+// @Param id path int true "ID kelas"
+// @Param tag query string false "Saring berdasarkan tag"
+// @Param before query string false "Cursor: id ulasan terakhir yang sudah dilihat"
+// @Param limit query int false "Jumlah per halaman, 1 sampai 50" default(10)
+// @Success 200 {object} model.ReviewPage
+// @Failure 400 {object} model.ErrorResponse
+// @Security BearerAuth
+// @Router /courses/{id}/reviews [get]
 func (s *ReviewService) ListByCourse(c *fiber.Ctx) error {
 	ctx, cancel := helper.RequestContext(c)
 	defer cancel()
