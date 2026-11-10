@@ -11,8 +11,6 @@ import (
 	"tugas2/helper"
 	"tugas2/middleware"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 

@@ -23,7 +23,6 @@ type CourseRepository interface {
 	DeleteEnrollment(ctx context.Context, courseID, userID int) error
 	LockCourses(ctx context.Context, ids ...int) error
 	UpdateQuota(ctx context.Context, id, quota, version int) (model.Course, error)
-	UpdateQuota(ctx context.Context, id, quota, version int) (model.Course, error)
 	IsEnrolled(ctx context.Context, courseID, userID int) (bool, error)
 }
 
