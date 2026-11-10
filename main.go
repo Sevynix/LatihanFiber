@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hibiken/asynq"
+
 	"tugas2/app/repository"
 	"tugas2/app/service"
 	"tugas2/config"
@@ -60,6 +62,8 @@ func main() {
 	tokenRepository := repository.NewTokenRepository(pool)
 	roleRepository := repository.NewRoleRepository(pool)
 	courseRepository := repository.NewCourseRepository(pool)
+	outboxRepository := repository.NewOutboxRepository(pool)
+	notificationRepository := repository.NewNotificationRepository(pool)
 	supervisorRepository := repository.NewSupervisorRepository(pool)
 	txManager := repository.NewTxManager(pool)
 
@@ -89,7 +93,10 @@ func main() {
 		userRepository, tokenRepository, jwtManager, permissions,
 		time.Duration(config.GetEnvInt("JWT_REFRESH_TTL_DAYS", 7))*24*time.Hour,
 	)
-	courseService := service.NewCourseService(courseRepository, txManager)
+	courseService := service.NewCourseService(courseRepository, outboxRepository, txManager)
+	notificationService := service.NewNotificationService(
+		notificationRepository, outboxRepository, asynq.NewInspector(config.RedisOpt()),
+	)
 	supervisionService := service.NewSupervisionService(supervisorRepository, txManager)
 	reviewService := service.NewReviewService(reviewRepository, courseRepository, permissions)
 	portfolioService := service.NewPortfolioService(portfolioRepository, studentRepository, permissions)
@@ -103,6 +110,7 @@ func main() {
 		UserService:        userService,
 		AuthService:        authService,
 		CourseService:      courseService,
+		NotificationService: notificationService,
 		SupervisionService: supervisionService,
 		ReviewService:      reviewService,
 		PortfolioService:   portfolioService,
