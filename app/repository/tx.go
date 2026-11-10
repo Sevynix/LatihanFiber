@@ -35,6 +35,10 @@ func (m *TxManager) WithTx(ctx context.Context, fn func(tx DBTX) error) error {
 	return err
 }
 
+func (m *TxManager) WithTxOnce(ctx context.Context, fn func(tx DBTX) error) error {
+	return m.runOnce(ctx, fn)
+}
+
 func (m *TxManager) runOnce(ctx context.Context, fn func(tx DBTX) error) error {
 	tx, err := m.pool.Begin(ctx)
 	if err != nil {
