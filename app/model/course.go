@@ -22,3 +22,9 @@ type UpdateQuotaRequest struct {
 	Quota   int `json:"quota" validate:"required,min=1,max=500"`
 	Version int `json:"version" validate:"required,min=1"`
 }
+
+type MyCourses struct {
+	Courses      []Course `json:"courses"`
+	TotalCredits int      `json:"total_credits"`
+	MaxCredits   int      `json:"max_credits"`
+}
