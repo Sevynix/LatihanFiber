@@ -1,0 +1,10 @@
+# Secret tidak boleh masuk image.
+.env
+.env.*
+
+# Hasil kerja lokal yang tidak dibutuhkan untuk build.
+.git
+logs/
+*.log
+*.exe
+coverage.out
