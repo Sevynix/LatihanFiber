@@ -199,9 +199,8 @@ func (s *AuthService) Me(c *fiber.Ctx) error {
 	if err != nil {
 		return helper.Unauthorized("user tidak ditemukan")
 	}
-	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", fiber.Map{
-		"user":        user,
-		"permissions": s.perms.PermissionsOf(user.Role),
+	return helper.Success(c, fiber.StatusOK, "profil berhasil diambil", model.MeResponse{
+		User: user, Permissions: s.perms.PermissionsOf(user.Role),
 	})
 }
 

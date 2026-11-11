@@ -64,7 +64,12 @@ func (s *UserService) List(c *fiber.Ctx) error {
 		last := rows[len(rows)-1]
 		meta.NextCursor = helper.EncodeCursor(last.CreatedAt, last.ID)
 	}
-	return helper.SuccessCursor(c, "daftar user berhasil diambil", rows, meta)
+	return c.JSON(model.UserPage{
+		Success: true,
+		Message: "daftar user berhasil diambil",
+		Data:    rows,
+		Meta:    *meta,
+	})
 }
 
 func (s *UserService) Get(c *fiber.Ctx) error {

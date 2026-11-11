@@ -38,3 +38,8 @@ type AuthUser struct {
 	Username string `json:"username"`
 	Role     string `json:"role"`
 }
+
+type MeResponse struct {
+	User        User     `json:"user"`
+	Permissions []string `json:"permissions"`
+}

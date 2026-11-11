@@ -47,3 +47,10 @@ type CursorMeta struct {
 	NextCursor string `json:"next_cursor,omitempty"`
 	HasMore    bool   `json:"has_more"`
 }
+
+type UserPage struct {
+	Success bool       `json:"success"`
+	Message string     `json:"message"`
+	Data    []User     `json:"data"`
+	Meta    CursorMeta `json:"meta"`
+}
